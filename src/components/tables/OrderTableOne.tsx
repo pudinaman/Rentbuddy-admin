@@ -11,6 +11,9 @@ import {
 import { Pagination } from "../ui/pagination/Pagination";
 import ModalWrapper from "../../layout/ModalWrapper";
 import { toast } from "react-toastify";
+import { ChevronDown } from "lucide-react";
+import { Dropdown } from "../ui/dropdown/Dropdown";
+import { DropdownItem } from "../ui/dropdown/DropdownItem";
 
 interface OrderTableProps {
   allowedRoles?: string[];
@@ -27,13 +30,16 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
   const [search, setSearch] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   // const [startDate, setStartDate] = useState("");
   // const [endDate, setEndDate] = useState("");
 
   const [debouncedFilters, setDebouncedFilters] = useState({
     search: "",
     city: "",
-    state: ""
+    state: "",
+    status: "all"
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -44,12 +50,13 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
       setDebouncedFilters({
         search,
         city: cityFilter,
-        state: stateFilter
+        state: stateFilter,
+        status: statusFilter
       });
       setCurrentPage(1);
     }, 500);
     return () => clearTimeout(handler);
-  }, [search, cityFilter, stateFilter]);
+  }, [search, cityFilter, stateFilter, statusFilter]);
 
   // delete confirm modal state
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -62,8 +69,17 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
       search: debouncedFilters.search,
       state: debouncedFilters.state,
       city: debouncedFilters.city,
+      status: debouncedFilters.status === "all" ? "" : debouncedFilters.status,
     }),
   });
+
+  const statusLabelMap: Record<string, string> = {
+    all: "All Status",
+    pending: "Pending",
+    processing: "Processing",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  };
 
   const orders = orderData?.data || [];
   const pagination = orderData?.pagination || { totalPages: 1, total: 0 };
@@ -86,6 +102,7 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
       orderId: order.orderId,     // ✅ Business Order ID
       customerName: order.userId?.username || "Unknown",
       email: order.userId?.email || "N/A",
+      phone: order.billingInfo?.phone || "N/A",
       amount: order.totalAmount,
       status: order.status || "Pending",
       paymentType: order.paymentType || "N/A",
@@ -194,6 +211,41 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
               className="w-full sm:w-32 rounded-xl border border-white/30 bg-white/40 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none backdrop-blur-xl transition focus:border-blue-500/70 dark:border-white/10 dark:bg-slate-900/50 dark:text-slate-100"
             />
 
+            {/* Status Filter */}
+            <div className="relative w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => setIsStatusDropdownOpen((prev) => !prev)}
+                className="dropdown-toggle flex w-full items-center justify-between gap-2 rounded-xl border border-white/30 bg-white/40 px-3 py-2 text-sm text-slate-900 shadow-sm outline-none backdrop-blur-xl transition hover:bg-white/60 focus:border-blue-500/70 dark:border-white/10 dark:bg-slate-900/50 dark:text-slate-100 dark:hover:bg-slate-900/80 sm:w-40"
+              >
+                <span className="truncate">
+                  {statusLabelMap[statusFilter.toLowerCase()] || statusFilter}
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 transition-transform ${isStatusDropdownOpen ? "rotate-180" : ""
+                    }`}
+                />
+              </button>
+
+              <Dropdown
+                isOpen={isStatusDropdownOpen}
+                onClose={() => setIsStatusDropdownOpen(false)}
+                className="w-full sm:w-48"
+              >
+                {Object.entries(statusLabelMap).map(([key, label]) => (
+                  <DropdownItem
+                    key={key}
+                    onItemClick={() => {
+                      setStatusFilter(key);
+                      setIsStatusDropdownOpen(false);
+                    }}
+                  >
+                    {label}
+                  </DropdownItem>
+                ))}
+              </Dropdown>
+            </div>
+
             {/* Date Filters */}
             {/* <div className="flex items-center gap-2">
               <input
@@ -251,7 +303,7 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
                     <TableCell className="px-4 py-4">
                       <div className="flex flex-col">
                         <span className="text-sm font-semibold text-slate-900 dark:text-slate-50">{order.customerName}</span>
-                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{order.email}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">{order.phone}</span>
                       </div>
                     </TableCell>
 
@@ -269,8 +321,12 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
 
                     <TableCell className="px-4 py-4 text-sm">
                       <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold ring-1 ring-inset ${order.status.toLowerCase() === "completed"
-                        ? "bg-emerald-500/10 text-emerald-400 ring-emerald-500/40 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]"
-                        : "bg-amber-500/10 text-amber-400 ring-amber-500/40 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]"
+                          ? "bg-emerald-500/10 text-emerald-400 ring-emerald-500/40 shadow-[0_0_0_1px_rgba(16,185,129,0.35)]"
+                          : order.status.toLowerCase() === "cancelled"
+                            ? "bg-rose-500/10 text-rose-400 ring-rose-500/40 shadow-[0_0_0_1px_rgba(244,63,94,0.35)]"
+                            : order.status.toLowerCase() === "processing"
+                              ? "bg-blue-500/10 text-blue-400 ring-blue-500/40 shadow-[0_0_0_1px_rgba(59,130,246,0.35)]"
+                              : "bg-amber-500/10 text-amber-400 ring-amber-500/40 shadow-[0_0_0_1px_rgba(245,158,11,0.35)]"
                         }`}>
                         {order.status}
                       </span>

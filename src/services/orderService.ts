@@ -9,6 +9,7 @@ export const orderService = {
         endDate?: string;
         city?: string;
         state?: string;
+        status?: string;
     }) => {
         const response = await apiClient.get("/orders/getOrders", { params });
         return response.data;
