@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { paymentService } from "../../services/paymentService";
 import ModalWrapper from "../../layout/ModalWrapper";
 import { toast } from "react-toastify";
-import { Check, Info, Loader2 } from "lucide-react";
+import { Check, Info, Loader2, Copy, Send } from "lucide-react";
 
 interface ExtendSubscriptionModalProps {
   isOpen: boolean;
@@ -28,6 +28,9 @@ export default function ExtendSubscriptionModal({
 }: ExtendSubscriptionModalProps) {
   const queryClient = useQueryClient();
   const [extensionMonths, setExtensionMonths] = useState<number>(1);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [isNotifying, setIsNotifying] = useState(false);
+  const [hasNotified, setHasNotified] = useState(false);
   
   // Default to Full if no subscriptionId is provided or if it's a Cumulative Payment
   const isUpfront = paymentType === "Cumulative Payment" || !subscriptionId;
@@ -70,8 +73,8 @@ export default function ExtendSubscriptionModal({
   });
 
   const { data: estimate, isLoading: isLoadingEstimate } = useQuery({
-    queryKey: ["extension-estimate", rentalId || orderId, extensionMonths, type],
-    queryFn: () => paymentService.getEstimation({ rentalId, orderId, extensionMonths, type }),
+    queryKey: ["extension-estimate", rentalId || orderId, extensionMonths],
+    queryFn: () => paymentService.getEstimation({ rentalId, orderId, extensionMonths }),
     enabled: !!(rentalId || orderId) && isOpen,
   });
 
@@ -101,6 +104,31 @@ export default function ExtendSubscriptionModal({
     rzp.open();
   };
 
+  const handleNotifyCustomer = async () => {
+    if (!generatedLink || !rentalId) return;
+    setIsNotifying(true);
+    try {
+      await paymentService.sendInvite({
+        rentalId,
+        type,
+        link: generatedLink,
+        extensionMonths
+      });
+      setHasNotified(true);
+      toast.success("Invitation sent via WhatsApp and Email!");
+    } catch (err: any) {
+      toast.error("Failed to send invitations");
+    } finally {
+      setIsNotifying(false);
+    }
+  };
+
+  const handleCopyLink = () => {
+    if (!generatedLink) return;
+    navigator.clipboard.writeText(generatedLink);
+    toast.success("Link copied to clipboard!");
+  };
+
   const handleExtend = () => {
     // Validation: Per Guideline, Conversion (upfront to recurring) requires 2+ months
     if (type === "Recurring" && isUpfront && extensionMonths === 1) {
@@ -118,7 +146,7 @@ export default function ExtendSubscriptionModal({
   };
 
   const estData = estimate?.data;
-  const grandTotal = estData?.totalRate; // API now returns totals for Full type
+  const grandTotal = type === "Full" ? (estData?.totalRate * extensionMonths) : estData?.totalRate;
 
   return (
     <ModalWrapper isOpen={isOpen} onClose={() => !extendMutation.isPending && onClose()}>
@@ -231,17 +259,13 @@ export default function ExtendSubscriptionModal({
           
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-slate-500">
-                {type === "Full" ? `Base Rent (Total)` : "Monthly Base Rate"}
-              </span>
+              <span className="text-slate-500">Rate (Base)</span>
               <span className="font-semibold text-slate-700 dark:text-slate-200">
                 ₹{isLoadingEstimate ? "..." : estData?.baseRate.toLocaleString()}
               </span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-slate-500">
-                {type === "Full" ? `GST (Total 18%)` : "GST (18%)"}
-              </span>
+              <span className="text-slate-500">GST (18%)</span>
               <span className="font-medium text-slate-600 dark:text-slate-400">
                 + ₹{isLoadingEstimate ? "..." : estData?.taxRate.toLocaleString()}
               </span>
@@ -258,32 +282,88 @@ export default function ExtendSubscriptionModal({
           </div>
         </div>
 
+        {/* Generated Link & Sharing section */}
+        {generatedLink && (
+          <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 space-y-4 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                <Check className="h-3 w-3" />
+                Extension Link Ready
+              </span>
+              <button 
+                onClick={handleCopyLink}
+                className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+              >
+                <Copy className="h-3 w-3" />
+                Copy
+              </button>
+            </div>
+            
+            <div className="bg-white dark:bg-slate-900 px-3 py-2 rounded-lg border border-indigo-100 dark:border-indigo-500/20 truncate text-xs font-mono text-slate-600 dark:text-slate-300">
+              {generatedLink}
+            </div>
+
+            <button
+              onClick={handleNotifyCustomer}
+              disabled={isNotifying || hasNotified}
+              className={`w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition transform active:scale-95 ${
+                hasNotified 
+                  ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" 
+                  : "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-700"
+              }`}
+            >
+              {isNotifying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : hasNotified ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Sent via WhatsApp & Email
+                </>
+              ) : (
+                <>
+                  <Send className="h-4 w-4" />
+                  Send to Customer (WA + Email)
+                </>
+              )}
+            </button>
+          </div>
+        )}
+
         <div className="pt-4 flex gap-3">
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (generatedLink) {
+                 queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+                 onClose();
+              } else {
+                 onClose();
+              }
+            }}
             disabled={extendMutation.isPending}
             className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition shadow-sm"
           >
-            Cancel
+            {generatedLink ? "Done" : "Cancel"}
           </button>
-          <button
-            onClick={handleExtend}
-            disabled={extendMutation.isPending}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition transform active:scale-95 disabled:opacity-70 disabled:scale-100 flex items-center justify-center gap-2 ${
-              type === "Recurring"
-                ? "bg-gradient-to-r from-indigo-600 to-violet-600 shadow-indigo-500/25"
-                : "bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/25"
-            }`}
-          >
-            {extendMutation.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              `Extend ${extensionMonths}m`
-            )}
-          </button>
+          {!generatedLink && (
+            <button
+              onClick={handleExtend}
+              disabled={extendMutation.isPending}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition transform active:scale-95 disabled:opacity-70 disabled:scale-100 flex items-center justify-center gap-2 ${
+                type === "Recurring"
+                  ? "bg-gradient-to-r from-indigo-600 to-violet-600 shadow-indigo-500/25"
+                  : "bg-gradient-to-r from-emerald-600 to-teal-600 shadow-emerald-500/25"
+              }`}
+            >
+              {extendMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                `Extend ${extensionMonths}m`
+              )}
+            </button>
+          )}
         </div>
       </div>
     </ModalWrapper>

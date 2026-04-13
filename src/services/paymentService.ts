@@ -48,9 +48,8 @@ export const paymentService = {
         rentalId?: string;
         orderId?: string;
         extensionMonths: number;
-        type: "Recurring" | "Full";
     }) => {
         const response = await apiClient.post("/payments/continue/estimate", data);
         return response.data;
     },
-};
+};
