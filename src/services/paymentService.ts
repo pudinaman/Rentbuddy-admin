@@ -32,4 +32,25 @@ export const paymentService = {
         const response = await apiClient.post("/refunds/create-refund", data);
         return response.data;
     },
-};
+
+    continueSubscription: async (data: {
+        rentalId?: string;
+        subscriptionId?: string;
+        orderId?: string;
+        extensionMonths: number;
+        type: "Recurring" | "Full";
+    }) => {
+        const response = await apiClient.post("/payments/continue", data);
+        return response.data;
+    },
+
+    getEstimation: async (data: {
+        rentalId?: string;
+        orderId?: string;
+        extensionMonths: number;
+        type: "Recurring" | "Full";
+    }) => {
+        const response = await apiClient.post("/payments/continue/estimate", data);
+        return response.data;
+    },
+};

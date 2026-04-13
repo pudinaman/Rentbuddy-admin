@@ -396,25 +396,27 @@ export default function SubscriptionTable({ allowedRoles }: SubscriptionTablePro
                       <TableCell className="px-4 py-4 text-sm text-slate-700 dark:text-slate-300">
                         {sub.remainingLabel}
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center group-hover:bg-slate-50 dark:group-hover:bg-slate-900 duration-200">
                         {["active", "past_due", "created"].includes(
                           sub.status
                         ) ? (
-                          <button
-                            onClick={() => {
-                              if (canAction) {
-                                setCancelTarget(sub);
-                              }
-                            }}
-                            disabled={!canAction}
-                            title={!canAction ? "You are not allowed to cancel subscriptions" : ""}
-                            className={`rounded-lg px-3 py-1.5 text-[11px] font-semibold text-white shadow transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-0 ${canAction
-                                ? "bg-rose-500 hover:bg-rose-600 active:scale-95"
-                                : "bg-slate-400 cursor-not-allowed opacity-60"
-                              }`}
-                          >
-                            {canAction ? "Cancel" : "Not Allowed"}
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => {
+                                if (canAction) {
+                                  setCancelTarget(sub);
+                                }
+                              }}
+                              disabled={!canAction}
+                              title={!canAction ? "Not Allowed" : "Cancel Subscription"}
+                              className={`rounded-lg px-3 py-1.5 text-[11px] font-bold uppercase tracking-tight text-white shadow-sm transition active:scale-95 ${canAction
+                                  ? "bg-rose-500 hover:bg-rose-600 shadow-rose-500/20"
+                                  : "bg-slate-400 cursor-not-allowed opacity-60"
+                                }`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs text-slate-400">—</span>
                         )}
@@ -499,6 +501,7 @@ export default function SubscriptionTable({ allowedRoles }: SubscriptionTablePro
             </>
           )}
         </ModalWrapper>
+
       </div>
     </div>
   );

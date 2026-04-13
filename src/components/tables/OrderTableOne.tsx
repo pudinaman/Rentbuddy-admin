@@ -14,6 +14,7 @@ import { toast } from "react-toastify";
 import { ChevronDown } from "lucide-react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
+import ExtendSubscriptionModal from "../modals/ExtendSubscriptionModal";
 
 interface OrderTableProps {
   allowedRoles?: string[];
@@ -60,6 +61,7 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
 
   // delete confirm modal state
   const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [extendTarget, setExtendTarget] = useState<any | null>(null);
 
   const { data: orderData, isLoading } = useQuery({
     queryKey: ["orders", currentPage, debouncedFilters],
@@ -106,12 +108,15 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
       amount: order.totalAmount,
       status: order.status || "Pending",
       paymentType: order.paymentType || "N/A",
+      subscriptionId: order.subscriptionId,
+      subscriptionStatus: order.subscriptionStatus || order.subscriptionDetails?.status || "n/a",
       cities,
       createdDate: new Date(order.createdAt).toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "short",
         year: "numeric",
       }),
+      raw: order
     };
   });
 
@@ -339,17 +344,32 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
                     <TableCell className="px-4 py-4 text-[11px] text-slate-500 dark:text-slate-400">{order.createdDate}</TableCell>
 
                     <TableCell className="px-4 py-4 text-center">
-                      <button
-                        onClick={() => { if (canAction) openConfirm(order.id); }}
-                        disabled={!canAction}
-                        title={!canAction ? "Not Allowed" : "Delete Order"}
-                        className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 ${canAction
-                          ? "border-rose-500/50 bg-rose-500 hover:bg-rose-600 shadow-[0_8px_20px_rgba(244,63,94,0.4)]"
-                          : "border-slate-300 bg-slate-400 cursor-not-allowed opacity-50"
-                          }`}
-                      >
-                        {canAction ? "Delete" : "Restricted"}
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        {["completed", "delivered"].includes(order.status.toLowerCase()) && (
+                           <button
+                             onClick={() => { if (canAction) setExtendTarget(order); }}
+                             disabled={!canAction}
+                             title={!canAction ? "Not Allowed" : "Extend Rental"}
+                             className={`rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 ${canAction
+                               ? "bg-indigo-600 hover:bg-indigo-700 shadow-[0_8px_20px_rgba(79,70,229,0.4)]"
+                               : "bg-slate-400 cursor-not-allowed opacity-50"
+                               }`}
+                           >
+                              {order.subscriptionStatus === "created" ? "Pending Auth" : "Extend"}
+                           </button>
+                        )}
+                        <button
+                          onClick={() => { if (canAction) openConfirm(order.id); }}
+                          disabled={!canAction}
+                          title={!canAction ? "Not Allowed" : "Delete Order"}
+                          className={`rounded-lg border px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-white transition-all active:scale-95 ${canAction
+                            ? "border-rose-500/50 bg-rose-500 hover:bg-rose-600 shadow-[0_8px_20px_rgba(244,63,94,0.4)]"
+                            : "border-slate-300 bg-slate-400 cursor-not-allowed opacity-50"
+                            }`}
+                        >
+                          {canAction ? "Delete" : "Restricted"}
+                        </button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -411,6 +431,18 @@ export default function OrderTableOne({ allowedRoles }: OrderTableProps) {
             </button>
           </div>
         </ModalWrapper>
+
+        {extendTarget && (
+           <ExtendSubscriptionModal
+             isOpen={!!extendTarget}
+             onClose={() => setExtendTarget(null)}
+             orderId={extendTarget.id}
+             subscriptionId={extendTarget.subscriptionId}
+             paymentType={extendTarget.paymentType}
+             customerName={extendTarget.customerName}
+             email={extendTarget.email}
+           />
+        )}
 
       </div>
     </div>
