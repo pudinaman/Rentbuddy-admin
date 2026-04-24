@@ -17,15 +17,19 @@ import {
     ChevronRight,
     Calendar,
     Package,
-    Activity
+    Activity,
+    Eye
 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
+import ModalWrapper from "../../layout/ModalWrapper";
 
 const CustomerDetailComponent: React.FC<{ allowedRoles?: string[] }> = ({ allowedRoles }) => {
     const { customerId } = useParams<{ customerId: string }>();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState("overview");
     const [loadingInvoiceId, setLoadingInvoiceId] = useState<string | null>(null);
+    const [docTarget, setDocTarget] = useState<any | null>(null);
+    const [preview, setPreview] = useState<string | null>(null);
 
     const userRaw = localStorage.getItem("user");
     const currentUser = userRaw ? JSON.parse(userRaw) : null;
@@ -128,13 +132,23 @@ const CustomerDetailComponent: React.FC<{ allowedRoles?: string[] }> = ({ allowe
         </div>
     );
 
-    const TabLoadingState = () => (
-        <div className="space-y-4">
-            <div className="h-32 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
-            <div className="h-48 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
-            <div className="h-32 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
-        </div>
-    );
+  const renderPreview = () => {
+    if (!preview) return null;
+    const isPDF = preview.includes("/raw/") || preview.toLowerCase().endsWith(".pdf");
+    if (isPDF) {
+      const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(preview)}&embedded=true`;
+      return <iframe src={viewerUrl} className="w-full h-[60vh] rounded-lg border" frameBorder="0" />;
+    }
+    return <img src={preview} alt="Document" className="w-full rounded-lg" />;
+  };
+
+  const TabLoadingState = () => (
+    <div className="space-y-4">
+      <div className="h-32 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
+      <div className="h-48 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
+      <div className="h-32 animate-pulse rounded-2xl bg-slate-200/60 dark:bg-slate-800/60" />
+    </div>
+  );
 
     return (
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br from-white/80 via-white/60 to-white/30 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.35)] backdrop-blur-2xl dark:from-slate-950/80 dark:via-slate-950/70 dark:to-slate-900/60 dark:border-white/5">
@@ -274,13 +288,14 @@ const CustomerDetailComponent: React.FC<{ allowedRoles?: string[] }> = ({ allowe
                                         <div className="overflow-x-auto">
                                             <Table>
                                                 <TableHeader>
-                                                    <TableRow className="border-b border-slate-100 bg-slate-50/50 dark:bg-slate-800/50 dark:border-slate-800">
-                                                        <TableCell isHeader className="px-8 py-4">Order ID</TableCell>
-                                                        <TableCell isHeader className="px-8 py-4">Items</TableCell>
-                                                        <TableCell isHeader className="px-8 py-4">Amount</TableCell>
-                                                        <TableCell isHeader className="px-8 py-4">Status</TableCell>
-                                                        <TableCell isHeader className="px-8 py-4">Date</TableCell>
-                                                    </TableRow>
+                                                        <TableRow className="border-b border-slate-100 bg-slate-50/50 dark:bg-slate-800/50 dark:border-slate-800">
+                                                            <TableCell isHeader className="px-8 py-4">Order ID</TableCell>
+                                                            <TableCell isHeader className="px-8 py-4">Items</TableCell>
+                                                            <TableCell isHeader className="px-8 py-4">Docs</TableCell>
+                                                            <TableCell isHeader className="px-8 py-4">Amount</TableCell>
+                                                            <TableCell isHeader className="px-8 py-4">Status</TableCell>
+                                                            <TableCell isHeader className="px-8 py-4">Date</TableCell>
+                                                        </TableRow>
                                                 </TableHeader>
                                                 <TableBody>
                                                     {orders.map((order: any) => (
@@ -292,6 +307,17 @@ const CustomerDetailComponent: React.FC<{ allowedRoles?: string[] }> = ({ allowe
                                                                         <span key={idx} className="truncate text-[10px] font-bold text-slate-600 dark:text-slate-400">{item.productName}</span>
                                                                     ))}
                                                                 </div>
+                                                            </TableCell>
+                                                            <TableCell className="px-8 py-4">
+                                                                {order.documents && (
+                                                                    <button
+                                                                        onClick={() => setDocTarget(order)}
+                                                                        className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                                                        title="View Documents"
+                                                                    >
+                                                                        <Eye size={16} />
+                                                                    </button>
+                                                                )}
                                                             </TableCell>
                                                             <TableCell className="px-8 py-4 font-black text-slate-900 dark:text-white text-base">₹{order.totalAmount}</TableCell>
                                                             <TableCell className="px-8 py-4">
@@ -702,6 +728,61 @@ const CustomerDetailComponent: React.FC<{ allowedRoles?: string[] }> = ({ allowe
                     </div>
                 </div>
             </div>
+
+            {/* Document Preview Modal */}
+            <ModalWrapper isOpen={!!docTarget} onClose={() => setDocTarget(null)}>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+                        Order Documents - {docTarget?.orderId}
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${docTarget?.documentStatus === 'verified' ? 'bg-green-100 text-green-700' :
+                            docTarget?.documentStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
+                        }`}>
+                        {docTarget?.documentStatus || 'pending'}
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                    {['aadhar', 'pan', 'rentAgreement', 'idProof'].map((key) => {
+                        const doc = docTarget?.documents?.[key];
+                        return (
+                            <div key={key} className="flex flex-col items-center gap-2 p-3 rounded-xl border bg-slate-50 dark:bg-slate-900/50">
+                                <span className="text-[10px] font-bold uppercase text-slate-500">{key}</span>
+                                {doc?.url ? (
+                                    <button
+                                        onClick={() => setPreview(doc.url)}
+                                        className="text-blue-500 hover:text-blue-600 p-1 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all"
+                                    >
+                                        <Eye size={20} />
+                                    </button>
+                                ) : (
+                                    <span className="text-xs text-slate-400 italic">No file</span>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {preview && (
+                    <div className="mb-6 p-2 rounded-xl border bg-slate-100 dark:bg-slate-800">
+                        <div className="flex justify-between items-center mb-2 px-2">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Preview</span>
+                            <button onClick={() => setPreview(null)} className="text-[10px] font-bold text-rose-500 hover:underline">Close Preview</button>
+                        </div>
+                        {renderPreview()}
+                    </div>
+                )}
+
+                <div className="flex justify-end gap-3 border-t pt-4">
+                    <button
+                        onClick={() => setDocTarget(null)}
+                        className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800"
+                    >
+                        Close
+                    </button>
+                </div>
+            </ModalWrapper>
         </div >
     );
 };

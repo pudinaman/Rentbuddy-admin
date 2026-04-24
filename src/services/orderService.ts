@@ -18,4 +18,10 @@ export const orderService = {
         const response = await apiClient.delete(`/orders/${id}`);
         return response.data;
     },
+    updateOrderDocStatus: async (orderId: string, status: string) => {
+        const response = await apiClient.put(`/orders/updateOrderDocStatus/${orderId}`, {
+            status,
+        });
+        return response.data;
+    },
 };

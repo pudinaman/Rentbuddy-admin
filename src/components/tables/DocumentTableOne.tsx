@@ -1,6 +1,6 @@
 import { useState, Fragment } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { documentService } from "../../services/documentService";
+import { orderService } from "../../services/orderService";
 import {
   Table,
   TableBody,
@@ -10,25 +10,8 @@ import {
 } from "../ui/table";
 import { toast } from "react-toastify";
 import { Pagination } from "../ui/pagination/Pagination";
-import { Eye } from "lucide-react";
+import { Eye, FileCheck, ShoppingBag } from "lucide-react";
 import ModalWrapper from "../../layout/ModalWrapper";
-
-interface DocFile {
-  url?: string;
-  uploadedAt?: string;
-}
-
-interface DocumentType {
-  _id: string;
-  username: string;
-  documents: {
-    aadhar?: DocFile;
-    pan?: DocFile;
-    rentAgreement?: DocFile;
-    idProof?: DocFile;
-  };
-  status: string;
-}
 
 const itemsPerPage = 10;
 
@@ -37,186 +20,160 @@ const DocumentTableOne = () => {
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [preview, setPreview] = useState<string | null>(null);
+  const [orderDocTarget, setOrderDocTarget] = useState<any | null>(null);
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["documents"],
-    queryFn: documentService.getDocuments,
+  /* ================= QUERIES ================= */
+  // Fetch all orders to extract document-specific ones
+  const { data: orderData, isLoading: isOrderLoading } = useQuery({
+    queryKey: ["orders-for-docs", currentPage],
+    queryFn: () => orderService.getOrders({ page: 1, limit: 1000 }), // Fetch a large batch to filter
   });
 
-  const docs: DocumentType[] = data?.documents || [];
+  const allOrders = orderData?.data || [];
+  const ordersWithDocs = allOrders.filter((o: any) => o.documents && Object.values(o.documents).some((d: any) => d.url));
 
-  const updateStatusMutation = useMutation({
+  /* ================= MUTATIONS ================= */
+  const updateOrderStatusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
-      documentService.updateDocumentStatus(id, status),
+      orderService.updateOrderDocStatus(id, status),
     onSuccess: (_, variables) => {
-      toast.success(`Marked as ${variables.status}`);
-      queryClient.invalidateQueries({ queryKey: ["documents"] });
-    },
-    onError: () => {
-      toast.error("Failed to update status");
+      toast.success(`Order documents marked as ${variables.status}`);
+      queryClient.invalidateQueries({ queryKey: ["orders-for-docs"] });
+      setOrderDocTarget(null);
     },
   });
-
-  const updateStatus = (id: string, status: string) => {
-    updateStatusMutation.mutate({ id, status });
-  };
 
   /* ================= HELPERS ================= */
   const isPDF = (url: string) =>
     url.includes("/raw/") || url.toLowerCase().endsWith(".pdf");
 
-
-
-  /* ================= PREVIEW RENDER ================= */
-  const renderPreview = () => {
-  if (!preview) return null;
-
-  // 🔥 FORCE INLINE PDF VIEW
-  if (isPDF(preview)) {
-    const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(
-      preview
-    )}&embedded=true`;
-
-    return (
-      <iframe
-        src={viewerUrl}
-        className="w-full h-[65vh] rounded-lg border"
-        frameBorder="0"
-      />
-    );
-  }
-
-  return (
-    <img
-      src={preview}
-      alt="Document"
-      className="w-full rounded-lg"
-    />
-  );
-};
-
+  const renderPreview = (url: string) => {
+    if (isPDF(url)) {
+      const viewerUrl = `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+      return <iframe src={viewerUrl} className="w-full h-[65vh] rounded-lg border" frameBorder="0" />;
+    }
+    return <img src={url} alt="Document" className="w-full rounded-lg" />;
+  };
 
   /* ================= FILTER + PAGINATION ================= */
-  const filtered = docs.filter(d =>
-    d.username.toLowerCase().includes(search.toLowerCase())
+  const filteredOrders = ordersWithDocs.filter((o: any) => 
+    o.orderId.toLowerCase().includes(search.toLowerCase()) || 
+    (o.userId?.username || "").toLowerCase().includes(search.toLowerCase()) ||
+    (o.billingInfo?.firstName || "").toLowerCase().includes(search.toLowerCase()) ||
+    (o.billingInfo?.lastName || "").toLowerCase().includes(search.toLowerCase()) ||
+    (o.billingInfo?.email || "").toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const current = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedList = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  /* ================= STATUS BADGE ================= */
   const StatusBadge = ({ status }: { status: string }) => {
     const map: any = {
       pending: "bg-yellow-100 text-yellow-700",
       verified: "bg-green-100 text-green-700",
       rejected: "bg-red-100 text-red-700",
     };
-
     return (
-      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${map[status]}`}>
-        {status.toUpperCase()}
+      <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${map[status || 'pending']}`}>
+        {status || 'PENDING'}
       </span>
     );
   };
 
   return (
     <Fragment>
-      <div className="rounded-xl border bg-white p-5">
-
+      <div className="rounded-2xl border border-white/10 bg-white/80 p-6 shadow-xl backdrop-blur-xl dark:bg-slate-900/80">
+        
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between gap-3 mb-4">
-          <h2 className="text-lg font-semibold">Document Verification</h2>
-
-          <input
-            type="text"
-            placeholder="Search username..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full sm:w-64 border rounded-lg px-3 py-2"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <FileCheck className="text-blue-500" />
+              Document Center
+            </h2>
+            <p className="text-xs text-slate-500">Manage order-specific legal documents and rental agreements.</p>
+          </div>
         </div>
 
-        {/* Table */}
-        <div className="max-h-[70vh] overflow-y-auto overflow-x-auto pr-2">
+        {/* Search */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <span className="absolute inset-y-0 left-3 flex items-center text-slate-400">⌕</span>
+            <input
+              type="text"
+              placeholder="Search Order ID, Customer Name or Email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white/50 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all dark:bg-slate-800 dark:border-slate-700"
+            />
+          </div>
+        </div>
 
-          {isLoading && <p className="text-blue-600 text-center py-6">Loading...</p>}
-          {isError && <p className="text-red-600 text-center py-6">{error?.message || "Failed to load documents"}</p>}
-
-          {!isLoading && (
+        {/* Table Content */}
+        <div className="overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-800">
+          {isOrderLoading ? (
+            <div className="py-20 text-center animate-pulse text-slate-400 font-bold uppercase tracking-widest text-xs">Loading Documents...</div>
+          ) : (
             <Table>
-              <TableHeader className="bg-gray-50">
+              <TableHeader className="bg-slate-50/50 dark:bg-slate-800/50">
                 <TableRow>
-                  <TableCell isHeader>Username</TableCell>
+                  <TableCell isHeader>Order & Customer</TableCell>
                   <TableCell isHeader className="text-center">Aadhar</TableCell>
                   <TableCell isHeader className="text-center">PAN</TableCell>
-                  <TableCell isHeader className="text-center">Rent Agreement</TableCell>
+                  <TableCell isHeader className="text-center">Agreement</TableCell>
                   <TableCell isHeader className="text-center">Status</TableCell>
                   <TableCell isHeader className="text-center">Actions</TableCell>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {current.length > 0 ? (
-                  current.map(d => (
-                    <TableRow key={d._id}>
-                      <TableCell className="font-medium">{d.username}</TableCell>
+                {paginatedList.length > 0 ? (
+                  paginatedList.map((item: any) => (
+                    <TableRow key={item._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-bold text-blue-600 dark:text-blue-400 text-sm">#{item.orderId}</span>
+                          <span className="text-[11px] font-bold text-slate-800 dark:text-slate-200 uppercase">
+                            {item.userId?.username || `${item.billingInfo?.firstName || ''} ${item.billingInfo?.lastName || ''}`.trim() || 'Guest Customer'}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">
+                            {item.userId?.email || item.billingInfo?.email || 'No Email'}
+                          </span>
+                        </div>
+                      </TableCell>
 
-                      {["aadhar", "pan", "rentAgreement"].map((key: string) => (
+                      {["aadhar", "pan", "rentAgreement"].map((key) => (
                         <TableCell key={key} className="text-center">
-                          {d.documents[key as keyof typeof d.documents]?.url ? (
+                          {item.documents?.[key]?.url ? (
                             <button
-                              onClick={() =>
-                                setPreview(
-                                  d.documents[key as keyof typeof d.documents]?.url ?? null
-                                )
-                              }
-                              className="text-blue-600 hover:text-blue-700"
+                              onClick={() => setPreview(item.documents[key].url)}
+                              className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
                             >
-                              <Eye size={20} />
+                              <Eye size={16} />
                             </button>
-                          ) : "—"}
+                          ) : <span className="text-slate-300 italic text-xs">—</span>}
                         </TableCell>
                       ))}
 
                       <TableCell className="text-center">
-                        <StatusBadge status={d.status} />
+                        <StatusBadge status={item.documentStatus} />
                       </TableCell>
 
-                      <TableCell className="text-center flex gap-2 justify-center py-3">
-                        <button
-                          disabled={d.status === "verified"}
-                          onClick={() => updateStatus(d._id, "verified")}
-                          className={`px-3 py-1 text-sm rounded-md text-white ${
-                            d.status === "verified"
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : "bg-green-500 hover:bg-green-600"
-                          }`}
-                        >
-                          Accept
-                        </button>
-
-                        <button
-                          disabled={d.status === "rejected"}
-                          onClick={() => updateStatus(d._id, "rejected")}
-                          className={`px-3 py-1 text-sm rounded-md text-white ${
-                            d.status === "rejected"
-                              ? "bg-gray-400 cursor-not-allowed"
-                              : "bg-red-500 hover:bg-red-600"
-                          }`}
-                        >
-                          Reject
-                        </button>
+                      <TableCell className="text-center">
+                        <div className="flex justify-center gap-2">
+                          <button
+                            onClick={() => setOrderDocTarget(item)}
+                            className="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-[10px] font-bold uppercase hover:bg-slate-800 transition-all shadow-md active:scale-95 dark:bg-blue-600 dark:hover:bg-blue-700"
+                          >
+                            Verify Order
+                          </button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6 text-gray-500">
-                      No documents found
-                    </TableCell>
+                    <TableCell colSpan={6} className="text-center py-20 text-slate-400 italic text-sm">No documents found.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -225,9 +182,9 @@ const DocumentTableOne = () => {
         </div>
 
         {/* Pagination */}
-        {filtered.length > 0 && (
-          <div className="flex justify-between mt-4">
-            <p className="text-sm">Page {currentPage} of {totalPages}</p>
+        {filteredOrders.length > 0 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-xs text-slate-500">Showing <span className="font-bold">{paginatedList.length}</span> of <span className="font-bold">{filteredOrders.length}</span> items</p>
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
@@ -237,22 +194,79 @@ const DocumentTableOne = () => {
         )}
       </div>
 
-      {/* PREVIEW MODAL */}
+      {/* GLOBAL PREVIEW MODAL */}
       <ModalWrapper isOpen={!!preview} onClose={() => setPreview(null)}>
-        <h2 className="text-lg font-semibold mb-3">Uploaded Document</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Document Preview</h2>
+          <button onClick={() => setPreview(null)} className="text-xs font-bold text-rose-500 hover:underline">Close Preview</button>
+        </div>
+        <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl p-2 border">
+          {preview && renderPreview(preview)}
+        </div>
+      </ModalWrapper>
 
-        <div className="w-full max-h-[65vh] overflow-auto rounded-lg border p-2 bg-gray-100">
-          {renderPreview()}
+      {/* ORDER VERIFICATION MODAL */}
+      <ModalWrapper isOpen={!!orderDocTarget} onClose={() => setOrderDocTarget(null)}>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-lg font-bold text-slate-900 dark:text-white">Verify Order Documents</h2>
+          <StatusBadge status={orderDocTarget?.documentStatus} />
         </div>
 
-        <div className="flex justify-between mt-4">
-          
+        <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100 mb-6 dark:bg-blue-900/20 dark:border-blue-800">
+           <div className="flex justify-between items-center">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-blue-500 mb-1">Customer</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                   {orderDocTarget?.userId?.username || `${orderDocTarget?.billingInfo?.firstName || ''} ${orderDocTarget?.billingInfo?.lastName || ''}`.trim() || 'Guest Customer'}
+                </p>
+                <p className="text-[10px] text-slate-500">{orderDocTarget?.userId?.email || orderDocTarget?.billingInfo?.email || ''}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase font-bold text-blue-500 mb-1">Order ID</p>
+                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">#{orderDocTarget?.orderId}</p>
+              </div>
+           </div>
+        </div>
 
+        <div className="grid grid-cols-2 gap-3 mb-8">
+          {['aadhar', 'pan', 'rentAgreement', 'idProof'].map((key) => {
+            const doc = orderDocTarget?.documents?.[key];
+            return (
+              <div key={key} className="flex flex-col items-center gap-2 p-4 rounded-xl border border-slate-100 bg-slate-50 dark:bg-slate-800/50 dark:border-slate-700">
+                <span className="text-[10px] font-bold uppercase text-slate-400">{key}</span>
+                {doc?.url ? (
+                  <button
+                    onClick={() => setPreview(doc.url)}
+                    className="flex items-center gap-2 text-blue-600 font-bold text-xs hover:underline"
+                  >
+                    <Eye size={16} /> View
+                  </button>
+                ) : <span className="text-[10px] italic text-slate-300">Not Uploaded</span>}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-3 justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
           <button
-            onClick={() => setPreview(null)}
-            className="px-4 py-2 rounded-md bg-gray-700 text-white"
+            onClick={() => setOrderDocTarget(null)}
+            className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700"
           >
-            Close
+            Cancel
+          </button>
+          <button
+            onClick={() => updateOrderStatusMutation.mutate({ id: orderDocTarget._id, status: "rejected" })}
+            disabled={updateOrderStatusMutation.isPending || orderDocTarget?.documentStatus === "rejected"}
+            className="px-6 py-2 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            Reject All
+          </button>
+          <button
+            onClick={() => updateOrderStatusMutation.mutate({ id: orderDocTarget._id, status: "verified" })}
+            disabled={updateOrderStatusMutation.isPending || orderDocTarget?.documentStatus === "verified"}
+            className="px-6 py-2 rounded-xl bg-emerald-500 text-white text-sm font-bold hover:bg-emerald-600 shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            Approve All
           </button>
         </div>
       </ModalWrapper>
