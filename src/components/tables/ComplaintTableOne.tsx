@@ -10,7 +10,7 @@ import {
 } from "../ui/table";
 import { Pagination } from "../ui/pagination/Pagination";
 import ModalWrapper from "../../layout/ModalWrapper";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { toast } from "react-toastify";
 
 interface Complaint {
@@ -33,6 +33,7 @@ export default function ComplaintTableOne() {
   const [currentPage, setCurrentPage] = useState(1);
   const [confirmComplaint, setConfirmComplaint] = useState<Complaint | null>(null);
   const [editComplaint, setEditComplaint] = useState<Complaint | null>(null);
+  const [viewComplaint, setViewComplaint] = useState<Complaint | null>(null);
   const [formStatus, setFormStatus] = useState("");
 
   const { data: complaints = [], isLoading } = useQuery({
@@ -148,8 +149,19 @@ export default function ComplaintTableOne() {
                     <TableCell className="text-center">{c.name}</TableCell>
                     <TableCell className="text-center">{c.email}</TableCell>
                     <TableCell className="text-center">{c.phone}</TableCell>
-                    <TableCell className="max-w-[240px] truncate text-center">
-                      {c.message}
+                    <TableCell className="max-w-[240px] text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <span className="truncate max-w-[180px] text-xs text-slate-600 dark:text-slate-400" title={c.message}>
+                          {c.message}
+                        </span>
+                        <button 
+                          onClick={() => setViewComplaint(c)}
+                          className="rounded-lg p-1 text-blue-500 hover:bg-blue-100 dark:hover:bg-slate-700"
+                          title="View Full Message"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <span
@@ -278,6 +290,31 @@ export default function ComplaintTableOne() {
             >
               {deleteComplaintMutation.isPending ? "Deleting..." : "Delete"}
             </button>
+          </div>
+        </ModalWrapper>
+
+        {/* View Message Modal */}
+        <ModalWrapper isOpen={!!viewComplaint} onClose={() => setViewComplaint(null)}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-50">
+              Complaint Details
+            </h3>
+            <button onClick={() => setViewComplaint(null)} className="text-xs font-bold text-rose-500 hover:underline">
+              Close
+            </button>
+          </div>
+          <div className="space-y-4 rounded-xl bg-slate-50 p-4 dark:bg-slate-800/50">
+            <div>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Customer</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{viewComplaint?.name}</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">{viewComplaint?.email} • {viewComplaint?.phone}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase text-slate-500">Message</p>
+              <p className="mt-1 whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300">
+                {viewComplaint?.message}
+              </p>
+            </div>
           </div>
         </ModalWrapper>
       </div>
