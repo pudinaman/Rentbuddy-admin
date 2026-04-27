@@ -183,12 +183,21 @@ const DocumentTableOne = () => {
 
         {/* Pagination */}
         {filteredOrders.length > 0 && (
-          <div className="mt-6 flex items-center justify-between">
-            <p className="text-xs text-slate-500">Showing <span className="font-bold">{paginatedList.length}</span> of <span className="font-bold">{filteredOrders.length}</span> items</p>
+          <div className="mt-5 flex flex-col items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/30 px-4 py-3 text-xs text-slate-600 shadow-sm backdrop-blur-xl sm:flex-row dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300">
+            <p className="flex items-center gap-1">
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-slate-900/5 text-[11px] font-semibold text-slate-700 dark:bg-slate-100/10 dark:text-slate-200">
+                {currentPage}
+              </span>
+              <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                of {totalPages} pages ({filteredOrders.length} total)
+              </span>
+            </p>
+
             <Pagination
               currentPage={currentPage}
               totalPages={totalPages}
               onPageChange={setCurrentPage}
+              windowSize={3}
             />
           </div>
         )}
