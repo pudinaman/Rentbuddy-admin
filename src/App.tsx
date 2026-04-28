@@ -31,6 +31,7 @@ import ProductBarcodeDetails from "./pages/Tables/ProductBarcodeDetails";
 import Package from "./pages/Tables/Package";
 import Refunds from "./pages/Tables/Refunds";
 import CustomerDetails from "./pages/Tables/CustomerDetails";
+import CreateOrder from "./pages/Tables/CreateOrder";
 
 export default function App() {
   return (
@@ -122,6 +123,14 @@ export default function App() {
               element={
                 <ProtectedRoute allowedRoles={["admin", "Order manager"]}>
                   <Orders allowedRoles={["admin", "Order manager"]} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders/create"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "Order manager"]}>
+                  <CreateOrder />
                 </ProtectedRoute>
               }
             />

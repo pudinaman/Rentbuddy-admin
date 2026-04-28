@@ -24,4 +24,26 @@ export const orderService = {
         });
         return response.data;
     },
+    adminCreateOrder: async (orderData: any) => {
+        const response = await apiClient.post("/orders/createOrder", orderData);
+        return response.data;
+    },
+    uploadOrderDocuments: async (orderId: string, files: { aadhar?: File, pan?: File, rentAgreement?: File, idProof?: File }) => {
+        const formData = new FormData();
+        if (files.aadhar) formData.append("aadhar", files.aadhar);
+        if (files.pan) formData.append("pan", files.pan);
+        if (files.rentAgreement) formData.append("rentAgreement", files.rentAgreement);
+        if (files.idProof) formData.append("idProof", files.idProof);
+        
+        const response = await apiClient.post(`/orders/updateOrderDocuments/${orderId}`, formData, {
+            headers: {
+                "Content-Type": "multipart/form-data",
+            },
+        });
+        return response.data;
+    },
+    getOrderStatus: async (orderInternalId: string) => {
+        const response = await apiClient.get(`/orders/status/${orderInternalId}`);
+        return response.data;
+    },
 };

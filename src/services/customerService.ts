@@ -45,4 +45,16 @@ export const customerService = {
         const response = await apiClient.get(`/user/getAllCustomers/${id}/cart`);
         return response.data;
     },
+    adminCreateCustomer: async (data: {
+        firstName: string;
+        lastName: string;
+        email: string;
+        phone: string;
+        city?: string;
+        address?: string;
+        pincode?: string;
+    }) => {
+        const response = await apiClient.post("/user/admin/create", data);
+        return response.data;
+    },
 };
