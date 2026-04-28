@@ -7,7 +7,7 @@ import { orderService } from "../../services/orderService";
 import { packageService } from "../../services/packageService";
 import PageBreadcrumb from "../../components/common/PageBreadCrumb";
 import { toast } from "react-toastify";
-import { Loader2, ArrowLeft, CheckCircle2, Search, X, Check, Clock, ExternalLink, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, CheckCircle2, Search, X, Check, Clock, Plus } from "lucide-react";
 
 interface CartItem {
   id: string;
@@ -70,14 +70,14 @@ export default function CreateOrder() {
   const customersList = customersData?.data || [];
 
   // Fetch Products
-  const { data: productsData, isLoading: isLoadingProducts } = useQuery({
+  const { data: productsData } = useQuery({
     queryKey: ["all-products-list"],
     queryFn: () => productService.getProductList(),
   });
   const productsList = productsData?.data || [];
 
   // Fetch Packages
-  const { data: packagesData, isLoading: isLoadingPackages } = useQuery({
+  const { data: packagesData } = useQuery({
     queryKey: ["all-packages-list"],
     queryFn: () => packageService.getAllPackages(),
   });
