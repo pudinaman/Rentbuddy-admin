@@ -25,7 +25,7 @@ const DocumentTableOne = () => {
   /* ================= QUERIES ================= */
   // Fetch all orders to extract document-specific ones
   const { data: orderData, isLoading: isOrderLoading } = useQuery({
-    queryKey: ["orders-for-docs", currentPage],
+    queryKey: ["orders-for-docs"],
     queryFn: () => orderService.getOrders({ page: 1, limit: 1000 }), // Fetch a large batch to filter
   });
 
@@ -103,7 +103,10 @@ const DocumentTableOne = () => {
               type="text"
               placeholder="Search Order ID, Customer Name or Email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setCurrentPage(1);
+              }}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white/50 text-sm focus:ring-2 focus:ring-blue-500/20 outline-none transition-all dark:bg-slate-800 dark:border-slate-700"
             />
           </div>
