@@ -10,7 +10,7 @@ import {
 } from "../ui/table";
 import { toast } from "react-toastify";
 import { Pagination } from "../ui/pagination/Pagination";
-import { Eye, FileCheck, ShoppingBag } from "lucide-react";
+import { Eye, FileCheck } from "lucide-react";
 import ModalWrapper from "../../layout/ModalWrapper";
 
 const itemsPerPage = 10;
