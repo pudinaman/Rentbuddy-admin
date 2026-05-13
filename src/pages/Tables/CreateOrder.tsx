@@ -61,6 +61,7 @@ export default function CreateOrder() {
   // Order Details
   const [paymentType, setPaymentType] = useState("Recurring Payment");
   const [rentalDuration, setRentalDuration] = useState("3 Months");
+  const [discountPercent, setDiscountPercent] = useState(0);
 
   // Fetch Customers
   const { data: customersData, isLoading: isLoadingCustomers } = useQuery({
@@ -157,15 +158,19 @@ export default function CreateOrder() {
     },
   });
 
-  const { totalRent, totalDeposit, totalTax, totalInitial } = useMemo(() => {
+  const { totalRent, totalDeposit, totalTax, totalInitial, rentDiscount, discountedMonthlyRent } = useMemo(() => {
     const rent = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     const deposit = cartItems.reduce((acc, item) => acc + (item.deposit * item.quantity), 0);
     
-    let calculatedRent = rent;
+    // Calculate Discount
+    const discountAmount = rent * (discountPercent / 100);
+    const discountedMonthlyRent = rent - discountAmount;
+
+    let calculatedRent = discountedMonthlyRent;
     if (paymentType === "Cumulative Payment") {
         const match = rentalDuration.match(/\d+/);
         const months = match ? parseInt(match[0], 10) : 1;
-        calculatedRent = rent * months;
+        calculatedRent = discountedMonthlyRent * months;
     }
 
     const tax = calculatedRent * 0.18;
@@ -173,9 +178,11 @@ export default function CreateOrder() {
       totalRent: calculatedRent,
       totalDeposit: deposit,
       totalTax: tax,
-      totalInitial: calculatedRent + tax + deposit
+      totalInitial: calculatedRent + tax + deposit,
+      rentDiscount: discountAmount,
+      discountedMonthlyRent
     };
-  }, [cartItems, paymentType, rentalDuration]);
+  }, [cartItems, paymentType, rentalDuration, discountPercent]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -207,13 +214,14 @@ export default function CreateOrder() {
       targetUserId: selectedCustomerId,
       paymentType,
       paymentMethod: "Pending",
-      monthlyAmount: baseAmount.toString(),
-      productRent: baseAmount,
-      depositAmount: deposit,
-      totalAmount: totalInitialPayment,
+      monthlyAmount: discountedMonthlyRent.toString(),
+      productRent: discountedMonthlyRent,
+      depositAmount: totalDeposit,
+      totalAmount: totalInitial,
       isFirstMonth: true,
-      cgst: tax / 2,
-      igst: tax / 2,
+      couponDiscount: rentDiscount,
+      cgst: totalTax / 2,
+      igst: totalTax / 2,
       items: cartItems.map(item => ({
         itemType: item.type,
         productId: item.id, // Backend usually expects productId even for packages, or handles by itemType
@@ -567,14 +575,34 @@ export default function CreateOrder() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-200">Discount Percentage (%)</label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={discountPercent}
+                        onChange={(e) => setDiscountPercent(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                        placeholder="e.g. 10"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2 col-span-1 md:col-span-2">
                     <div className="p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800">
                       <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium mb-1 italic">
-                        * Monthly amount and deposit are automatically calculated based on the items added above.
+                        * Monthly amount and deposit are automatically calculated based on the items added above and any discount applied.
                       </p>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Base Monthly Rent:</span>
+                        <span className="text-sm font-medium text-slate-500 line-through">₹{cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0)}</span>
+                      </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Calculated Monthly Rent:</span>
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">₹{totalRent}</span>
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">Final Monthly Rent:</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-white">₹{cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0) - rentDiscount}</span>
                       </div>
                     </div>
                   </div>
@@ -658,8 +686,18 @@ export default function CreateOrder() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-600 dark:text-slate-400">
-                  {paymentType === "Cumulative Payment" ? "Total Rent" : "Base Rent"}
+                  {paymentType === "Cumulative Payment" ? "Total Rent (Gross)" : "Base Rent (Gross)"}
                 </span>
+                <span className="font-semibold text-slate-900 dark:text-white">₹{(totalRent + (paymentType === "Cumulative Payment" ? (rentDiscount * (parseInt(rentalDuration) || 1)) : rentDiscount)).toFixed(2)}</span>
+              </div>
+              {rentDiscount > 0 && (
+                <div className="flex justify-between text-green-600 dark:text-green-400">
+                    <span>Discount ({discountPercent}%)</span>
+                    <span>-₹{(paymentType === "Cumulative Payment" ? (rentDiscount * (parseInt(rentalDuration) || 1)) : rentDiscount).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-slate-600 dark:text-slate-400">Net Rent</span>
                 <span className="font-semibold text-slate-900 dark:text-white">₹{totalRent.toFixed(2)}</span>
               </div>
               <div className="flex justify-between">
