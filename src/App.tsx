@@ -32,6 +32,10 @@ import Package from "./pages/Tables/Package";
 import Refunds from "./pages/Tables/Refunds";
 import CustomerDetails from "./pages/Tables/CustomerDetails";
 import CreateOrder from "./pages/Tables/CreateOrder";
+import OnboardingHouse from "./pages/Houses/OnboardingHouse";
+import AllHouses from "./pages/Houses/AllHouses";
+import EditHouse from "./pages/Houses/EditHouse";
+import ScheduledVisits from "./pages/Houses/ScheduledVisits";
 
 export default function App() {
   return (
@@ -158,6 +162,40 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            <Route
+              path="/houses/scheduled"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "product manager"]}>
+                  <ScheduledVisits />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/houses/all"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "product manager"]}>
+                  <AllHouses />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/houses/edit/:id"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "product manager"]}>
+                  <EditHouse />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/houses/onboarding"
+              element={
+                <ProtectedRoute allowedRoles={["admin", "product manager"]}>
+                  <OnboardingHouse />
+                </ProtectedRoute>
+              }
+            />
+
 
             <Route
               path="/allproducts"

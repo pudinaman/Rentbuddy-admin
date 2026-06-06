@@ -10,6 +10,7 @@ import {
   PaymentIcon,
   OrderIcon,
 } from "../icons";
+import { Home } from "lucide-react";
 import { useSidebar } from "../context/SidebarContext";
 
 type NavItem = {
@@ -152,6 +153,29 @@ const navItems: NavItem[] = [
       {
         name: "Track",
         path: "/track",
+        allowedRoles: ["admin", "product manager"],
+      },
+    ],
+  },
+
+  {
+    name: "Houses Management",
+    icon: <Home className="h-5 w-5" />,
+    allowedRoles: ["admin", "product manager"],
+    subItems: [
+      {
+        name: "Scheduled Requests",
+        path: "/houses/scheduled",
+        allowedRoles: ["admin", "product manager"],
+      },
+      {
+        name: "All Houses",
+        path: "/houses/all",
+        allowedRoles: ["admin", "product manager"],
+      },
+      {
+        name: "Onboarding Houses",
+        path: "/houses/onboarding",
         allowedRoles: ["admin", "product manager"],
       },
     ],
