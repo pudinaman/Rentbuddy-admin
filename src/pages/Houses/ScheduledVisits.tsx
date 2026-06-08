@@ -143,11 +143,29 @@ const ScheduledVisits = () => {
                 </div>
               </div>
 
-              <div className="mt-auto pt-4 border-t border-slate-100 flex items-start gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
-                <p className="text-slate-600 leading-tight">
-                  <span className="font-medium text-slate-800">Location:</span> {visit.propertyLocation}
-                </p>
+              <div className="mt-auto pt-4 border-t border-slate-100 flex items-start justify-between gap-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <MapPin className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                  <p className="text-slate-600 leading-tight">
+                    <span className="font-medium text-slate-800">Location:</span> {visit.propertyLocation}
+                  </p>
+                </div>
+                {visit.status !== 'Completed' && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        await apiClient.put(`/visits/${visit._id}/complete`);
+                        toast.success('Visit marked as completed');
+                        fetchVisits();
+                      } catch (error) {
+                        toast.error('Failed to complete visit');
+                      }
+                    }}
+                    className="px-4 py-1.5 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition"
+                  >
+                    Complete
+                  </button>
+                )}
               </div>
               
             </div>

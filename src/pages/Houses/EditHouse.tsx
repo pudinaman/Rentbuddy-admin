@@ -47,6 +47,7 @@ export default function EditHouse() {
     monthlyRent: "",
     brokerage: "",
     securityDeposit: "",
+    visitFee: "",
   });
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function EditHouse() {
         monthlyRent: data.monthlyRent,
         brokerage: data.brokerage,
         securityDeposit: data.securityDeposit,
+        visitFee: data.visitFee || "",
         existingImages: data.images || [],
         existingVideos: data.videos || [],
       }));
@@ -644,7 +646,7 @@ export default function EditHouse() {
                 Pricing Details
               </h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pl-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 pl-8">
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Monthly Rent (₹) *</label>
                   <div className="relative">
@@ -695,6 +697,24 @@ export default function EditHouse() {
                       min="0"
                       placeholder="e.g. 50000"
                       value={formData.securityDeposit}
+                      onChange={handleChange}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white dark:focus:bg-slate-800"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Visit Charges (₹)</label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                      <DollarSign className="h-4 w-4" />
+                    </div>
+                    <input
+                      type="number"
+                      name="visitFee"
+                      min="0"
+                      placeholder="e.g. 500"
+                      value={formData.visitFee}
                       onChange={handleChange}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 py-2.5 text-sm transition focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-white dark:focus:bg-slate-800"
                     />
